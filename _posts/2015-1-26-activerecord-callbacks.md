@@ -78,9 +78,11 @@ def refresh_status
   self.save
 end
 
-def calculated_status
-  list_txns.detect { |lt| lt.success? } ? 'sold' : 'available'
-end
+private
+
+  def calculated_status
+    list_txns.detect { |lt| lt.success? } ? 'sold' : 'available'
+  end
 {% endhighlight %}
 
 And it works!
