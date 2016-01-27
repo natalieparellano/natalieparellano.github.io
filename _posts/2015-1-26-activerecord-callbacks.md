@@ -83,6 +83,8 @@ def calculated_status
 end
 {% endhighlight %}
 
+And it works!
+
 ### Takeaways
 
 Few things I learned while working on this - 
@@ -96,7 +98,7 @@ Few things I learned while working on this -
 {% highlight console %}
     53: def refresh_status
  => 54:   binding.pry
-    55:   self.reload # so that it will know about its latest associations
+    55:   self.reload 
     56:   self[:status] = calculated_status
     57:   self.save
     58: end  
