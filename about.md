@@ -4,7 +4,7 @@ title: About
 permalink: /about/
 ---
 
-<img src="/images/nat_with_lamb_cropped.jpg" alt="Natalie" style="width: 250px; margin: 0 auto; display: block;"/>
+<img src="/images/nat_with_lamb_cropped_small.jpg" alt="Natalie" style="width: 250px; margin: 0 auto; display: block;"/>
 
 I am a web developer with a background in data processing and analytics.
 
