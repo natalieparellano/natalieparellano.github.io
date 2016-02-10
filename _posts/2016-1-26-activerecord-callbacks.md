@@ -95,7 +95,7 @@ Few things I learned while working on this -
 
 * However, as soon as I started using `after_commit`, my test suite began throwing a bunch of errors - it seemed that the callback was never firing! After some investigation, I found this excellent [blog post](http://www.justinweiss.com/articles/a-couple-callback-gotchas-and-a-rails-5-fix/) from Justin Weiss that describes the culprit: Rails wraps every test in its own database transaction. So `after_commit` would not be firing until after the test itself! Thankfully, there is a solution, mentioned in the post.
 
-* Finally, you'll notice that `refresh_status` makes use of `self.reload` - why? Well, to be honest, I haven't fully figured this out - but it seems that even *after* the `ListTxn` has been committed, the associated `Listing` isn't aware that it exists:
+* Finally, you'll notice that `refresh_status` makes use of `self.reload` - why? It seems that even *after* the `ListTxn` has been committed, the associated `Listing` isn't aware that it exists:
 
 {% highlight console %}
     53: def refresh_status
@@ -119,4 +119,4 @@ Few things I learned while working on this -
   listing_id: 2
 {% endhighlight %}
 
-If anyone has the answer, please let me know! Thanks for reading. 
+Thanks for reading!
