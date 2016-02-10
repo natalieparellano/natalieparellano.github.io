@@ -15,7 +15,7 @@ API keys can be found in Account > My User > View Authorizations
 gem 'braintree', '~> 2.56.0'
 {% endhighlight %}
 
-### (3) Create config file 
+### (3) Create a config file 
 
 *config/initializers/braintree.rb*
 
@@ -64,6 +64,7 @@ end
 
 {% highlight ruby %}
 def new
+  @list_txn = ListTxn.new
   @client_token = PaymentProcessor.generate_client_token
 end
 {% endhighlight %}
@@ -98,15 +99,19 @@ Just a note, as per the documentation, there is really no need to define the `on
 
 ### (7) Create sale
 
-Now that the `payment_method_nonce` is an input to the form, it can be parsed from the parameters to the `create` action.
+Now that `payment_method_nonce` is an input to the form, it can be parsed from the parameters to the `create` action.
 
 *In my controller:*
 
 {% highlight ruby %}
 def create
-  PaymentProcessor.create_sale( # listing and payment_method_nonce are read from params
-    listing: listing, 
-    options: { payment_method_nonce: payment_method_nonce }
+
+  # pre-processing...
+
+  PaymentProcessor.create_sale(
+    merchant_account_id,
+    list_price,
+    params[:payment_method_nonce]
   )  
 end
 {% endhighlight %}
@@ -114,36 +119,25 @@ end
 *payment_processor.rb*
 
 {% highlight ruby %}
-def self.create_sale( merchant_account_id, list_price, options: {} )
+def self.create_sale( merchant_account_id, list_price, payment_method_nonce )
   result = Braintree::Transaction.sale(
     :merchant_account_id  => merchant_account_id, # the secondary merchant
-    :amount               => list_price, # total amount charged
-    :payment_method_nonce => options[:payment_method_nonce],
-    :service_fee_amount   => calculate_service_fee( list_price ), # the portion retained by the primary merchant
+    :amount               => list_price,          # total amount charged
+    :payment_method_nonce => payment_method_nonce,
+    :service_fee_amount   => calculate_service_fee( list_price ), # the fee retained by the primary merchant 
     :options => {
       :submit_for_settlement => true
     }
   )    
 
-  return parse_result( result )
-end
-
-# a helper function to consistently format the result
-def self.parse_result( result )
-  if result.success?
-    {        
-      processor_id: result.transaction.id,
-      status: result.transaction.status,
-      details: {}
-    }
-  else
-    {
-      status: 'error',
-      processor_errors: parse_errors( result ),
-      details: {}
-    }
-  end
+  return parse_result( result ) # consistently format the result
 end
 {% endhighlight %}
 
+Once the `payment_method_nonce` has been obtained, it must be submitted to Braintree to actually process the transaction. Having this intermediary step is very important for my purposes, because it allows me to check one more time that the item being purchased is still available (no one else managed to purchase it while the customer was inputting their payment information). I apply a database lock on the row for the specified listing while this step is being executed to avoid any simultaneous transactions!
 
+The submission step is relatively straightforward, with only a few values to specify. Since my app functions as a marketplace, there are two recipients for the payment - the `merchant_account_id` for the seller (the user who listed the item being purchased), and the master merchant id, which is specified in the config file. Braintree will deduct the `service_fee_amount` from the total `amount` specified, passing the remainder to the seller.
+
+Note that without `:submit_for_settlement => true`, calling `Braintree::Transaction.sale` simply obtains an authorization for the specified amount - this confirms that the payment information is valid and there are sufficient funds to cover the transaction, and puts a hold on the customer's account so that they are unable to spend the funds while the authorization is valid. However funds are not actually transferred until the authorization is submitted. Rather than perform this as a separate step, I simply submit for settlement right away. 
+
+And that's about it!
