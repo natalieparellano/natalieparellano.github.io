@@ -98,15 +98,28 @@ Just a note, as per the documentation, there is really no need to define the `on
 
 ### (7) Create sale
 
+Now that the `payment_method_nonce` is an input to the form, it can be parsed from the parameters to the `create` action.
+
+*In my controller:*
+
+{% highlight ruby %}
+def create
+  PaymentProcessor.create_sale( # listing and payment_method_nonce are read from params
+    listing: listing, 
+    options: { payment_method_nonce: payment_method_nonce }
+  )  
+end
+{% endhighlight %}
+
 *payment_processor.rb*
 
 {% highlight ruby %}
-def self.create_sale( listing: nil, options: {} )
+def self.create_sale( merchant_account_id, list_price, options: {} )
   result = Braintree::Transaction.sale(
-    :merchant_account_id  => listing.seller_profile.active_paid_profile.merchant_account_id,
-    :amount               => listing.list_price,
+    :merchant_account_id  => merchant_account_id, # the secondary merchant
+    :amount               => list_price, # total amount charged
     :payment_method_nonce => options[:payment_method_nonce],
-    :service_fee_amount   => calculate_service_fee( listing.list_price ),
+    :service_fee_amount   => calculate_service_fee( list_price ), # the portion retained by the primary merchant
     :options => {
       :submit_for_settlement => true
     }
@@ -130,17 +143,6 @@ def self.parse_result( result )
       details: {}
     }
   end
-end
-{% endhighlight %}
-
-*In my controller:*
-
-{% highlight ruby %}
-def create
-  PaymentProcessor.create_sale( # listing and payment_method_nonce are read from params
-    listing: listing, 
-    options: { payment_method_nonce: payment_method_nonce }
-  )  
 end
 {% endhighlight %}
 
