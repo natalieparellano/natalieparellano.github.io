@@ -28,7 +28,7 @@ Braintree::Configuration.private_key = my_braintree_private_key
 
 ### (4) Include the Braintree JavaScript SDK
 
-In my view:
+*In my view:*
 
 {% highlight html %}
 <script src="https://js.braintreegateway.com/v2/braintree.js"></script>
