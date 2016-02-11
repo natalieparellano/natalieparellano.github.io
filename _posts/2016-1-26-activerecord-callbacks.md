@@ -10,15 +10,15 @@ I am currently working on a Rails app that functions as a marketplace for digita
 There are two models at play here - 
 
 1. `Listing` to hold details about the product for sale
-+  `ListTxn` to hold details about the attempted purchase (can be successful or failed)
+2. `ListTxn` to hold details about the attempted purchase (can be successful or failed)
 
 ### Finding an Approach
 
 My first thought was to have each `Listing` introspect on its `list_txns` to see if it can find one with a "success" status. Something like 
 
-*listing.rb*
-
 {% highlight ruby %}
+# listing.rb
+
 has_many :list_txns
 
 def status
@@ -60,18 +60,18 @@ It seems logical to me that whenever an object that ***should*** impact a listin
 
 First step is to add an `after_commit` hook to `ListTxn`: 
 
-*list_txn.rb*
-
 {% highlight ruby %}
+# list_txn.rb
+
 belongs_to :listing
 after_commit { listing.refresh_status }
 {% endhighlight %}
 
 Then, `Listing` should know how to refresh its status:
 
-*listing.rb*
-
 {% highlight ruby %}
+# listing.rb
+
 def refresh_status
   self.reload
   self[:status] = calculated_status

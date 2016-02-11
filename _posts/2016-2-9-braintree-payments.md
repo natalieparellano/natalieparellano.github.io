@@ -3,24 +3,22 @@ layout: post
 title: Integrating Braintree Payment Processing with Rails
 ---
 
-Braintree (from PayPal) is an excellent solution for processing customer payments. With Braintree, one doesn't have to worry about handling credit card or other sensitive user data, as that information is passed directly from the client to Braintree's servers. It is also pretty flexible, and well documented. Here is how I got it working with my Rails app:
+Braintree (from PayPal) is an excellent solution for processing customer payments. With Braintree, one doesn't have to worry about handling credit card or other sensitive user data, as that information is passed directly from the client to Braintree's servers. It is also pretty flexible and well documented. Here is how I got it working with my Rails app:
 
 ### (1) Create a <a href="https://www.braintreepayments.com/get-started" target="_blank">sandbox account</a> with Braintree
 
-API keys can be found in Account > My User > View Authorizations
+API keys can be found in *Account > My User > View Authorizations*
 
 ### (2) Install the Braintree gem
 
 {% highlight ruby %}
+# Gemfile
+
 gem 'braintree', '~> 2.56.0'
-{% endhighlight %}
 
-### (3) Create a config file 
+# config/initializers/braintree.rb
 
-*config/initializers/braintree.rb*
-
-{% highlight ruby %}
-Braintree::Configuration.environment = :sandbox
+Braintree::Configuration.environment = :sandbox # or :production
 Braintree::Configuration.merchant_id = my_braintree_merchant_id
 Braintree::Configuration.public_key  = my_braintree_public_key
 Braintree::Configuration.private_key = my_braintree_private_key
@@ -28,7 +26,7 @@ Braintree::Configuration.private_key = my_braintree_private_key
 
 ### (4) Include the Braintree JavaScript SDK
 
-*In my view:*
+In my view:
 
 {% highlight html %}
 <script src="https://js.braintreegateway.com/v2/braintree.js"></script>
@@ -38,9 +36,9 @@ Braintree::Configuration.private_key = my_braintree_private_key
 
 I decided to create a service model (not backed by ActiveRecord) to handle all Braintree functionality related to payments processing. This way, all code related to this function can live in one file, as opposed to being scattered about the app. This will make things easier if I ever decide to change processors. 
 
-*payment_processor.rb*
-
 {% highlight ruby %}
+# app/models/services/processors/payment_processor.rb
+
 class PaymentProcessor
   # all relevant functionality goes here
 end
@@ -52,15 +50,15 @@ The application flow is helpfully illustrated on Braintree's site <a href="https
 
 First step is to generate a client token that is rendered in the view, as an argument to the `braintree.setup` JavaScript function provided by the SDK.
 
-*payment_processor.rb*
-
 {% highlight ruby %}
+# payment_processor.rb
+
 def self.generate_client_token
   Braintree::ClientToken.generate
 end
 {% endhighlight %}
 
-*In my controller:*
+In my controller:
 
 {% highlight ruby %}
 def new
@@ -69,7 +67,7 @@ def new
 end
 {% endhighlight %}
 
-*In my view:*
+In my view:
 
 {% highlight html %}
 <%= form_for @list_txn do |f| %>  
@@ -101,7 +99,7 @@ Just a note, as per the documentation, there is really no need to define the `on
 
 Now that `payment_method_nonce` is an input to the form, it can be parsed from the parameters to the `create` action.
 
-*In my controller:*
+In my controller:
 
 {% highlight ruby %}
 def create
@@ -116,9 +114,9 @@ def create
 end
 {% endhighlight %}
 
-*payment_processor.rb*
-
 {% highlight ruby %}
+# payment_processor.rb
+
 def self.create_sale( merchant_account_id, list_price, payment_method_nonce )
   result = Braintree::Transaction.sale(
     :merchant_account_id  => merchant_account_id, # the secondary merchant
