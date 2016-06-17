@@ -117,7 +117,7 @@ def self.create_sale( merchant_account_id, amount, nonce )
     :merchant_account_id  => merchant_account_id,
     :amount               => amount,
     :payment_method_nonce => nonce,
-    :service_fee_amount   => calculate_service_fee( amount ), # the fee retained by the primary merchant 
+    :service_fee_amount   => calculate_service_fee( amount ), # the fee retained by the master merchant 
     :options => {
       :submit_for_settlement => true
     }
