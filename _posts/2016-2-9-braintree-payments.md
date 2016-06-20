@@ -3,7 +3,7 @@ layout: post
 title: Integrating Braintree Payment Processing with Rails
 ---
 
-Braintree (from PayPal) is an excellent solution for payment processing. With Braintree, one doesn't have to worry about handling credit card or other sensitive user data, as that information is passed directly from the client to Braintree's servers. Braintree is also pretty flexible and well documented. Here is a simple approach for getting it working with Rails.
+Braintree (from PayPal) is an excellent solution for adding payment processing to web applications. With Braintree, one doesn't have to worry about handling credit card or other sensitive user data, as that information is passed directly from the client to Braintree's servers. It is also pretty flexible and well documented. Here is a simple approach for getting it working with Rails.
 
 ### (1) Create a <a href="https://www.braintreepayments.com/get-started" target="_blank">sandbox account</a> with Braintree
 
@@ -36,7 +36,7 @@ The application flow is helpfully illustrated by Braintree <a href="https://deve
 
 ### (4) Generate a client token
 
-One approach would be to create a service model (not backed by ActiveRecord) to handle all Braintree functionality related to payments processing. This way, all code related to this function can live in one file, as opposed to being scattered about the app.
+One approach would be to create a service model (not backed by ActiveRecord) to handle all Braintree functionality.
 
 {% highlight ruby %}
 # app/models/services/processors/payment_processor.rb
@@ -45,8 +45,6 @@ def self.generate_client_token
   Braintree::ClientToken.generate
 end
 {% endhighlight %}
-
-### (5) Allow user to submit their payment details to Braintree
 
 In the controller:
 
@@ -58,6 +56,8 @@ def new
   @client_token = PaymentProcessor.generate_client_token
 end
 {% endhighlight %}
+
+### (5) Allow user to submit their payment details to Braintree
 
 In the view:
 
@@ -83,15 +83,17 @@ In the view:
 </script>
 {% endhighlight %}
 
-When a user clicks "submit" on the form, the information they have provided in the drop-in container is sent to Braintree's servers. Upon successful authentication, a "payment method <a href="https://en.wikipedia.org/wiki/Cryptographic_nonce" target="_blank">nonce</a>" is returned as an argument to the `onPaymentMethodReceived` callback. At this point, no data has been sent to the application server.
+What does this do? When a user views the page, embedded within the form will be a "drop-in" container with inputs for payment details - in the case of my application, credit card information. When the user clicks the "submit" button, the information they have provided in the drop-in container is sent to Braintree's servers, where Braintree will determine if the information is valid (such as by consulting with the credit card networks - or, if paying by PayPal, by validating the user's login credentials). 
 
-Obtaining a nonce gives a "green light" for a transaction - but no sale is created until we submit the nonce back to Braintree. Having this intermediary step is great for being able to perform final checks - such as inventory control. If everything looks good, we can proceed to the next step.
+If everything checks out, Braintree returns a "payment method <a href="https://en.wikipedia.org/wiki/Cryptographic_nonce" target="_blank">nonce</a>" as an argument to the `onPaymentMethodReceived` callback. 
 
-Just a note - you'll notice that the `onPaymentMethodReceived` callback performs two actions - it appends the nonce as a hidden field on the form, and clicks submit on the form. As per Braintree's documentation, these steps shouldn't be necessary - they should happen automatically if no callback is defined. However I couldn't get it to work without the manual specification (if anyone can see what I'm doing wrong, please share!).
+This is like getting a "green light" for a transaction - but a transaction isn't actually initiated until we submit the nonce back to Braintree along with essential details such as how much we want to charge the user. 
+
+Just a note - you'll notice that the `onPaymentMethodReceived` callback performs two actions - it appends the nonce as a hidden input to the form, and submits the form (finally) to the application's server. As per Braintree's documentation, these things should happen automatically if no callback is defined. However I couldn't get it to work without the manual specification (if anyone can see what I'm doing wrong, please share!).
 
 ### (6) Complete the sale
 
-Since `payment_method_nonce` is a hidden input to the form, it can be parsed from the parameters to `create` and passed back to Braintree via the API.
+Since `payment_method_nonce` is a hidden input to the form, it can be parsed from the parameters to `create`.
 
 In the controller:
 
@@ -127,8 +129,8 @@ def self.create_sale( merchant_account_id, amount, nonce )
 end
 {% endhighlight %}
 
-In a marketplace app, there are two recipients for the transaction - the merchant (or seller) corresponding to the `merchant_account_id`, and the "master" merchant (specified in the config file above), which corresponds to the application and is used for collecting the service fee. It is important to note that `amount` is the **total** amount charged to the buyer - the service fee is deducted from the amount, and the remainder is passed to the seller. 
+In a marketplace app, there are two parties getting paid - the seller, and the marketplace (the application itself) which receives a "service fee" or cut of the transaction. In `PaymentProcessor.create_sale`, the `merchant_account_id` corresponds to the merchant account for the seller. The marketplace is identified by the `merchant_id` in the config file. It is important to note that `amount` is the **total** amount charged to the buyer - the service fee is deducted from the amount, and the remainder is passed to the seller. 
 
-Note the use of `:submit_for_settlement => true` - without this option, calling `Braintree::Transaction.sale` only obtains an **authorization** for the specified amount - this confirms that (a) the payment information is valid and (b) there are sufficient funds to cover the transaction, and puts a hold on the customer's account so that they are unable to spend the funds while the authorization is valid. However funds are not actually transferred until the authorization is submitted. Rather than perform this as a separate step, you can submit for settlement right away. 
+Note the use of `:submit_for_settlement => true` - without this option, calling `Braintree::Transaction.sale` only obtains an **authorization** to charge the specified `amount` to the buyer - an authorization confirms that (a) the payment information is valid and (b) there are sufficient funds in the buyer's account to cover the transaction. It also puts a hold on the buyer's account so that they cannot spend the funds while the authorization is valid. However no money is transferred until the authorization is submitted. Rather than perform this as a separate step, you can submit for settlement right away. 
 
 Not covered here...how to setup merchant accounts for users of the application who act as sellers. A subject for another post!
